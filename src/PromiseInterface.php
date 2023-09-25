@@ -12,7 +12,7 @@ interface PromiseInterface
      * Block the 
      * @param callable $done 
      * @param callable|null $error 
-     * @return PromiseInterface 
+     * @return PromiseInterface
      */
     public function then(callable $done, callable $error = null);
 
@@ -36,7 +36,7 @@ interface PromiseInterface
      * Catch error on the promise instance
      * 
      * @param callable $error 
-     * @return static 
+     * @return static
      */
     public function catch(callable $error);
 }

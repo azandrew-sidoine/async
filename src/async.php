@@ -10,15 +10,16 @@ use function Drewlabs\Async\Scheduler\ioScheduler;
 use function Drewlabs\Async\Scheduler\spawn;
 
 /**
- * Internal promise factory function. Not intended to be used
- * externally. 
+ * A promise factory function that create promise A+ specification
+ * instance.
+ *  
  * It takes a waitable function with a reference to the `revolve` 
- * function as first param and a reference
- * to the `reject` function of the promise instance as second parameter.
+ * function as first param and a reference to the `reject` function 
+ * of the promise instance as second parameter.
  * 
  * ```php
  * 
- * $promise = createPromise(function($resolve, $reject) {
+ * $promise = promise(function($resolve, $reject) {
  *      // Do something with resolve
  *      usleep(1000*1000); // Block PHP execution
  *      resolve("I have been waited for 1 second.");
@@ -37,7 +38,7 @@ use function Drewlabs\Async\Scheduler\spawn;
  * ```php
  * // Here the script create a promise instance that executes when
  * // PHP process shutdown with success
- * $promise = createPromise(function($resolve, $reject) {
+ * $promise = promise(function($resolve, $reject) {
  *      // Do something with resolve
  *      usleep(1000*1000); // Block PHP execution
  *      resolve("I have been waited for 1 second.");
@@ -49,7 +50,7 @@ use function Drewlabs\Async\Scheduler\spawn;
  * @param 
  * @return PromiseInterface<T>&Awaitable 
  */
-function promiseFactory(callable $waitFn = null, bool $shutdown = false)
+function promise(callable $waitFn = null, bool $shutdown = false)
 {
 
     return new class($waitFn, $shutdown) implements PromiseInterface, Awaitable
@@ -226,7 +227,7 @@ function promiseFactory(callable $waitFn = null, bool $shutdown = false)
  */
 function fulfilled($value)
 {
-    $promise = promiseFactory(function ($resolve) use ($value) {
+    $promise = promise(function ($resolve) use ($value) {
         $resolve($value);
     });
 
@@ -247,7 +248,7 @@ function fulfilled($value)
  */
 function rejected($error)
 {
-    $promise = promiseFactory(function ($_, $reject) use ($error) {
+    $promise = promise(function ($_, $reject) use ($error) {
         $reject($error);
     });
 
@@ -291,7 +292,7 @@ function rejected($error)
  */
 function async($coroutine)
 {
-    return promiseFactory(function ($resolve, $reject) use ($coroutine) {
+    return promise(function ($resolve, $reject) use ($coroutine) {
         list($runScheduler, $schedule, $stopScheduler) = ioScheduler();
         // Schedule the current job as task
         try {
@@ -316,12 +317,12 @@ function async($coroutine)
 
 /**
  * Create a promise instance that executes resolve and reject callbacks
- * when on PHP process shutdown. It's the simply version of `createPromise($waitFn, true)`
+ * when on PHP process shutdown. It's the simply version of `promise($waitFn, true)`
  * 
  * ```php
  * // Here the script create a promise instance that executes when
  * // PHP process shutdown with success
- * $promise = promise(function($resolve, $reject) {
+ * $promise = defer(function($resolve, $reject) {
  *      // Do something with resolve
  *      usleep(1000*1000); // Block PHP execution
  *      resolve("I have been waited for 1 second.");
@@ -332,17 +333,17 @@ function async($coroutine)
  * 
  * @return PromiseInterface<Drewlabs\Async\Future\T>&Awaitable 
  */
-function promise($waitFn) {
-    return promiseFactory($waitFn, true);
+function defer($waitFn) {
+    return promise($waitFn, true);
 }
 
 /**
- * `co`, is same as `async` interface, except the fact that is takes 
+ * `join`, is same as `async` interface, except the fact that is takes 
  * a list of subroutines wait on the result of those subroutines and return
  * the a list of the awaited result in the order they were inserted.
  *
  * ```php
- * $promise = co(
+ * $promise = join(
  *      function () {
  *          printf("Calling coroutine...\n");
  *          yield usleep(1000 * 2000); // blocking
@@ -369,9 +370,9 @@ function promise($waitFn) {
  * @param callable|\Generator ...$coroutine 
  * @return  PromiseInterface<T[]>&Awaitable
  */
-function co(...$coroutines)
+function join(...$coroutines)
 {
-    return promiseFactory(function ($resolve, $reject) use ($coroutines) {
+    return promise(function ($resolve, $reject) use ($coroutines) {
         list($runScheduler, $schedule, $stopScheduler) = ioScheduler();
         $outputs = [];
         $total = count($coroutines);
@@ -447,7 +448,7 @@ function all($coroutines)
      * @var T[]
      */
     $value = null;
-    $promise = $coroutines instanceof PromiseInterface ? $coroutines : co(...(is_array($coroutines) ? $coroutines : [$coroutines]));
+    $promise = $coroutines instanceof PromiseInterface ? $coroutines : join(...(is_array($coroutines) ? $coroutines : [$coroutines]));
 
     $promise->then(function ($resolve) use (&$value) {
         $value = $resolve;

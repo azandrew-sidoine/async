@@ -1,12 +1,9 @@
 <?php
 
 use function Drewlabs\Async\Future\async;
-use function Drewlabs\Async\Future\promise;
-use function Drewlabs\Async\Future\promiseFactory;
+use function Drewlabs\Async\Future\defer;
 
 require __DIR__ . '/vendor/autoload.php';
-
-
 
 $promise = async(function () {
     printf("Calling co routine...\n");
@@ -14,7 +11,7 @@ $promise = async(function () {
     return 'awaited';
 });
 
-$promise2 = promise(function($resolve) {
+$promise2 = defer(function($resolve) {
     usleep(1000*1000);
     $resolve('Shutting down');
 }, true);

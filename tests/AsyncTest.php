@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 
 use function Drewlabs\Async\Future\async;
 use function Drewlabs\Async\Future\await;
-use function Drewlabs\Async\Future\promiseFactory;
+use function Drewlabs\Async\Future\promise;
 
 class AsyncTest extends TestCase
 {
@@ -57,7 +57,7 @@ class AsyncTest extends TestCase
 
     public function test_async_then_return_new_async()
     {
-        $nextPromise = promiseFactory();
+        $nextPromise = promise();
         $promise = async(function () {
             yield usleep(1000 * 500);
             return 2;
