@@ -1,6 +1,6 @@
 # Async
 
-The `async` library provides a list of utility function to doing basic async programming in PHP language. It makes use of PHP `Generator` to implement a co-routine platform on top of which async tasks are executed.
+The `async` library provides a list of utility functions to doing basic async programming in PHP language. It makes use of PHP `Generator` to implement a co-routine platform on top of which async tasks are executed.
 
 ## Usage
 
@@ -120,5 +120,4 @@ $promise->wait();
 
   printf("%d\n", $result2); // 2 
   ```
-
   `all` works the same as `await` except that is takes an array of promises or subroutines and returns an array of resolved values.

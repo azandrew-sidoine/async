@@ -1,6 +1,6 @@
 {
     "name": "drewlabs/async",
-    "description": "Async utility function and class",
+    "description": "Provides utility function for async programming in PHP",
     "type": "library",
     "require-dev": {
         "phpunit/phpunit": ">=6.0"
