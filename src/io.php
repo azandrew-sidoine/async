@@ -62,6 +62,14 @@ function createSocket($socket)
         {
             yield returnValue(@fclose($this->socket));
         }
+
+        public function __toString()
+        {
+            if (!is_resource($this->socket)) {
+                return '';
+            }
+            return (string) $this->socket;
+        }
     };
 }
 
