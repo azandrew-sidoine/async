@@ -1,19 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the drewlabs namespace.
+ *
+ * (c) Sidoine Azandrew <azandrewdevelopper@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Drewlabs\Async\IO;
 
 use Drewlabs\Async\ProcessLoop;
-use Generator;
-use InvalidArgumentException;
 
 use function Drewlabs\Async\Utility\returnValue;
 use function Drewlabs\Async\Utility\waitForRead;
 use function Drewlabs\Async\Utility\waitForWrite;
 
 /**
- * 
- * @param resource $socket 
- * @return Generator<int, mixed, mixed, void> 
+ * @param resource $socket
+ *
+ * @return \Generator<int, mixed, mixed, void>
  */
 function socketAccept($socket)
 {
@@ -23,15 +32,15 @@ function socketAccept($socket)
 
 /**
  * Creates a that wait on read and write operation.
- * @param mixed $socket 
- * @return Socket 
+ *
+ * @param mixed $socket
+ *
+ * @return Socket
  */
 function createSocket($socket)
 {
-    return new class($socket) implements Socket
-    {
+    return new class($socket) implements Socket {
         /**
-         * 
          * @var int|resource
          */
         private $socket;
@@ -39,6 +48,15 @@ function createSocket($socket)
         public function __construct($socket)
         {
             $this->socket = $socket;
+        }
+
+        public function __toString()
+        {
+            if (!\is_resource($this->socket)) {
+                return '';
+            }
+
+            return (string) $this->socket;
         }
 
         public function read(int $length)
@@ -62,27 +80,17 @@ function createSocket($socket)
         {
             yield returnValue(@fclose($this->socket));
         }
-
-        public function __toString()
-        {
-            if (!is_resource($this->socket)) {
-                return '';
-            }
-            return (string) $this->socket;
-        }
     };
 }
 
-
 /**
- * Creates an IO poll instance
- * 
- * @return IoPoll 
+ * Creates an IO poll instance.
+ *
+ * @return IoPoll
  */
 function createIoPoll()
 {
-    return new class() implements IoPoll
-    {
+    return new class() implements IoPoll {
         /**
          * @var bool
          */
@@ -101,25 +109,25 @@ function createIoPoll()
         public function addSocket($socket, $process, int $type)
         {
             if (!SocketType::valid($type)) {
-                throw new InvalidArgumentException(sprintf("Unsupported socket type, supported socket types are %s", implode(SocketType::VALUES)));
+                throw new \InvalidArgumentException(sprintf('Unsupported socket type, supported socket types are %s', implode('', SocketType::VALUES)));
             }
             $addSocketClosures = [
                 SocketType::READ => function ($sock, $proc) {
-                    if (isset($this->readSockets[(int)$sock])) {
-                        $this->readSockets[(int)$sock][1][] = $proc;
+                    if (isset($this->readSockets[(int) $sock])) {
+                        $this->readSockets[(int) $sock][1][] = $proc;
                     } else {
-                        $this->readSockets[(int)$sock] = [$sock, [$proc]];
+                        $this->readSockets[(int) $sock] = [$sock, [$proc]];
                     }
                 },
                 SocketType::WRITE => function ($sock, $proc) {
-                    if (isset($this->writeSockets[(int)$sock])) {
-                        $this->writeSockets[(int)$sock][1][] = $proc;
+                    if (isset($this->writeSockets[(int) $sock])) {
+                        $this->writeSockets[(int) $sock][1][] = $proc;
                     } else {
-                        $this->writeSockets[(int)$sock] = [$sock, [$proc]];
+                        $this->writeSockets[(int) $sock] = [$sock, [$proc]];
                     }
-                }
+                },
             ];
-            call_user_func_array($addSocketClosures[(int)$type], [$socket, $process]);
+            \call_user_func_array($addSocketClosures[(int) $type], [$socket, $process]);
         }
 
         public function select(ProcessLoop $processPoll, int $timeout = null)
@@ -137,22 +145,21 @@ function createIoPoll()
             }
 
             foreach ($rSocks as $socket) {
-                list(, $tasks) = $this->readSockets[(int) $socket];
-                unset($this->readSockets[(int)$socket]);
+                [, $tasks] = $this->readSockets[(int) $socket];
+                unset($this->readSockets[(int) $socket]);
                 foreach ($tasks as $task) {
                     $processPoll->schedule($task);
                 }
             }
 
             foreach ($wSocks as $socket) {
-                list(, $tasks) = $this->writeSockets[(int) $socket];
-                unset($this->writeSockets[(int)$socket]);
+                [, $tasks] = $this->writeSockets[(int) $socket];
+                unset($this->writeSockets[(int) $socket]);
                 foreach ($tasks as $task) {
                     $processPoll->schedule($task);
                 }
             }
         }
-
 
         public function start(ProcessLoop $processPoll)
         {
@@ -171,9 +178,9 @@ function createIoPoll()
         }
 
         /**
-         * Stop the io poll task
-         * 
-         * @return void 
+         * Stop the io poll task.
+         *
+         * @return void
          */
         public function stop()
         {
@@ -181,19 +188,21 @@ function createIoPoll()
         }
 
         /**
-         * Get list of sockets (resources) in the io scheduler instance
-         * 
-         * @param mixed $values 
-         * @return array 
+         * Get list of sockets (resources) in the io scheduler instance.
+         *
+         * @param mixed $values
+         *
+         * @return array
          */
         private function getSockets($values)
         {
             $sockets = [];
             if (!empty($values)) {
-                foreach ($values as list($socket)) {
+                foreach ($values as [$socket]) {
                     $sockets[] = $socket;
                 }
             }
+
             return $sockets;
         }
     };

@@ -1,5 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the drewlabs namespace.
+ *
+ * (c) Sidoine Azandrew <azandrewdevelopper@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Drewlabs\Async\Utility;
 
 use Drewlabs\Async\IO\IoPoll;
@@ -10,18 +21,17 @@ use Drewlabs\Async\Queue;
 use Drewlabs\Async\ReturnValue;
 use Drewlabs\Async\SysCall;
 use Generator;
-use InvalidArgumentException;
 
 /**
- * Async return value factory function
- * 
- * @param mixed $value 
- * @return ReturnValue 
+ * Async return value factory function.
+ *
+ * @param mixed $value
+ *
+ * @return ReturnValue
  */
 function returnValue($value)
 {
-    return new class($value) implements ReturnValue
-    {
+    return new class($value) implements ReturnValue {
         /**
          * @var T
          */
@@ -39,19 +49,18 @@ function returnValue($value)
     };
 }
 
-
 /**
  * Create a coroutine instance from a callable instance
  * or from a PHP Generator.
- * 
- * @param callable|\Generator $generator 
- * @return Generator<mixed, mixed, mixed, mixed> 
- * @throws Throwable 
+ *
+ * @throws Throwable
+ *
+ * @return \Generator<mixed, mixed, mixed, mixed>
  */
 function createCoroutine($v)
 {
     /**
-     * @var Generator[]
+     * @var \Generator[]
      */
     $stack = [];
     /**
@@ -60,17 +69,18 @@ function createCoroutine($v)
     $exception = null;
 
     try {
-        $v = is_callable($v) ? call_user_func_array($v, []) : $v;
+        $v = \is_callable($v) ? \call_user_func_array($v, []) : $v;
     } catch (\Throwable $e) {
         $exception = $e;
     }
 
-    $generator = $v instanceof Generator ? $v : (function () use ($v) {
+    $generator = $v instanceof \Generator ? $v : (static function () use ($v) {
         yield;
+
         return $v;
     })();
 
-    for (;;) {
+    while (true) {
         try {
             if (null !== $exception) {
                 $generator->throw($exception);
@@ -87,9 +97,8 @@ function createCoroutine($v)
                 }
             }
 
-
-            if ($value instanceof Generator) {
-                array_push($stack, $generator);
+            if ($value instanceof \Generator) {
+                $stack[] = $generator;
                 $generator = $value;
                 continue;
             }
@@ -101,6 +110,7 @@ function createCoroutine($v)
                     // it return value, therefore we return the value returned by the
                     // generator when the stack becomes empty
                     $generator->next();
+
                     return $generator->getReturn();
                 }
                 $generator = array_pop($stack);
@@ -125,27 +135,22 @@ function createCoroutine($v)
     }
 }
 
-
 /**
  * Creates an object that is treated by the scheduler as
  * system call on a process object. They are used for kill, spawn, etc...
- * 
- * @param callable $closure 
- * @return SysCall 
+ *
+ * @return SysCall
  */
 function createSysCall(callable $closure)
 {
-    return new class($closure) implements SysCall
-    {
+    return new class($closure) implements SysCall {
         /**
          * @var callable
          */
         private $call;
 
         /**
-         * Creates a sys call object instance
-         * 
-         * @param callable $call 
+         * Creates a sys call object instance.
          */
         public function __construct(callable $call)
         {
@@ -154,22 +159,19 @@ function createSysCall(callable $closure)
 
         public function __invoke(...$args)
         {
-            return call_user_func_array($this->call, $args);
+            return \call_user_func_array($this->call, $args);
         }
     };
 }
 
-
 /**
- * `Queue` interface factory function
- * 
- * @return Queue 
+ * `Queue` interface factory function.
+ *
+ * @return Queue
  */
 function createQueue()
 {
-    return new class implements Queue
-    {
-
+    return new class() implements Queue {
         private $queue = [];
 
         public function __construct()
@@ -177,11 +179,11 @@ function createQueue()
         }
 
         /**
-         * Enqueue a process on the scheduler stack
-         * 
-         * @param mixed $value 
-         * @param mixed $taskQueue 
-         * @return void 
+         * Enqueue a process on the scheduler stack.
+         *
+         * @param mixed $value
+         *
+         * @return void
          */
         public function enqueue($value)
         {
@@ -189,13 +191,14 @@ function createQueue()
         }
 
         /**
-         * Remove a task from the top of the stack and return the removed item
-         * @param mixed $taskQueue 
-         * @return mixed 
+         * Remove a task from the top of the stack and return the removed item.
+         *
+         * @return mixed
          */
         public function dequeue()
         {
             $process = array_shift($this->queue);
+
             return $process;
         }
 
@@ -208,11 +211,12 @@ function createQueue()
         {
             $index = -1;
             foreach ($this->queue as $key => $value) {
-                if (call_user_func($predicate, $value)) {
+                if (\call_user_func($predicate, $value)) {
                     $index = $key;
                     break;
                 }
             }
+
             return $index;
         }
 
@@ -221,6 +225,7 @@ function createQueue()
             if (-1 === ($index = $this->findIndex($predicate))) {
                 return null;
             }
+
             return $this->queue[$index];
         }
 
@@ -241,17 +246,17 @@ function createQueue()
     };
 }
 
-
 /**
  * Sys call that wait read action on a PHP socket resource. It pauses the couroutine
  * until the socket is available for read operation an io poll.
- * 
- * @param mixed $socket 
- * @return SysCall 
+ *
+ * @param mixed $socket
+ *
+ * @return SysCall
  */
 function waitForRead($socket)
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll, IoPoll $ioPoll) use ($socket) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll, IoPoll $ioPoll) use ($socket) {
         $ioPoll->addSocket($socket, $process, SocketType::READ);
     });
 }
@@ -259,39 +264,41 @@ function waitForRead($socket)
 /**
  * Sys call that wait write action on a PHP socket resource. It pauses the couroutine
  * until the socket is available for write operation in an io poll.
- * 
- * @param mixed $socket 
- * @return SysCall 
+ *
+ * @param mixed $socket
+ *
+ * @return SysCall
  */
 function waitForWrite($socket)
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll, IoPoll $ioPoll) use ($socket) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll, IoPoll $ioPoll) use ($socket) {
         $ioPoll->addSocket($socket, $process, SocketType::WRITE);
     });
 }
 
 /**
- * Syscall that resolve process id for a running task
- * 
- * @return SysCall 
+ * Syscall that resolve process id for a running task.
+ *
+ * @return SysCall
  */
 function processId()
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) {
         $process->send($process->id());
         $poll->schedule($process);
     });
 }
 
-
 /**
- * Syscall that spwan a child process (subroutine)
- * @param callable|\Generator $subroutine 
- * @return SysCall 
+ * Syscall that spwan a child process (subroutine).
+ *
+ * @param callable|\Generator $subroutine
+ *
+ * @return SysCall
  */
 function spawn($subroutine)
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) use ($subroutine) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) use ($subroutine) {
         $process->send($poll->add($subroutine, $process->id()));
         $poll->schedule($process);
     });
@@ -299,50 +306,52 @@ function spawn($subroutine)
 
 /**
  * Create a fork of a given process id.
- * 
+ *
  * **Note** Only callable|Closure based process can be forked.
  * Trying to fork a process generated from a directed `Generator`
  * will fail as Generator are not clonable.
- * 
- * @param mixed $tId 
- * @return SysCall 
+ *
+ * @param mixed $tId
+ *
+ * @return SysCall
  */
 function fork($tId)
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) use ($tId) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) use ($tId) {
         // Fork the `tId` process
         if (false !== ($forkId = $poll->fork($tId, $process->id()))) {
             $process->send($forkId);
             $poll->schedule($process);
+
             return;
         }
-        throw new InvalidArgumentException(sprintf("Unable to fork process id: %s", $tId));
+        throw new \InvalidArgumentException(sprintf('Unable to fork process id: %s', $tId));
     });
 }
 
 /**
- * Syscall instance that kills a process (subroutine)
- * 
- * @param mixed $tid 
- * @return SysCall 
+ * Syscall instance that kills a process (subroutine).
+ *
+ * @param mixed $tid
+ *
+ * @return SysCall
  */
 function kill($tid)
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) use ($tid) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) use ($tid) {
         if ($poll->kill($tid)) {
             $poll->schedule($process);
+
             return;
         }
-        throw new InvalidArgumentException(sprintf('Invalid task Id : %s', $tid));
+        throw new \InvalidArgumentException(sprintf('Invalid task Id : %s', $tid));
     });
 }
-
-
 
 // #region TODO : Review Suspend, resume and stop sys call
 function suspend()
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) {
         // Pauses scheduler
         $poll->pause();
         $poll->schedule($process);
@@ -351,7 +360,7 @@ function suspend()
 
 function resume()
 {
-    return createSysCall(function (Process $process, ProcessLoop $poll) {
+    return createSysCall(static function (Process $process, ProcessLoop $poll) {
         // Resume a paused scheduler
         $poll->resume();
         $poll->schedule($process);
@@ -360,7 +369,7 @@ function resume()
 
 function close()
 {
-    return createSysCall(function ($_, ProcessLoop $poll) {
+    return createSysCall(static function ($_, ProcessLoop $poll) {
         // Stop the scheduler
         $poll->stop();
     });

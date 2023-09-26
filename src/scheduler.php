@@ -1,38 +1,48 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the drewlabs namespace.
+ *
+ * (c) Sidoine Azandrew <azandrewdevelopper@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Drewlabs\Async\Scheduler;
 
-use Closure;
-use Drewlabs\Async\Process;
-use Drewlabs\Async\SysCall;
-use Drewlabs\Async\Queue;
-use Drewlabs\Async\IO\IoPoll;
-use Drewlabs\Async\ProcessLoop;
-use Generator;
-use RuntimeException;
-use Throwable;
-
 use function Drewlabs\Async\IO\createIoPoll;
+
+use Drewlabs\Async\IO\IoPoll;
+use Drewlabs\Async\Process;
+use Drewlabs\Async\ProcessLoop;
+use Drewlabs\Async\Queue;
+use Drewlabs\Async\SysCall;
+
 use function Drewlabs\Async\Utility\createCoroutine;
 use function Drewlabs\Async\Utility\createQueue;
 
+use Generator;
+
 /**
  * Creates a process poll instance.
- * 
+ *
  * Passing true, will create a process for the io events poll, else if false, not
  * io event pool is created.
- * 
+ *
  * **Note** When the pool is created with support for IO event(ex: read,write), the poll
  * will hang event all callback tasks are completed. Therefore developpers should manually
  * stop the process poll to prevent memory leak or script to run indefinetively.
- * 
+ *
  * @param IoPoll|bool $ioPoll
+ *
  * @return ProcessLoop
  */
 function createProcessLoop($ioPoll = null)
 {
-    return new class($ioPoll) implements ProcessLoop
-    {
+    return new class($ioPoll) implements ProcessLoop {
         /**
          * @var Queue
          */
@@ -61,18 +71,19 @@ function createProcessLoop($ioPoll = null)
         /**
          * @var callable
          */
-        private $processResultCallback = null;
+        private $processResultCallback;
 
         /**
-         * Create new process pool instance
-         * 
-         * @param IoPoll|bool|null $ioPoll 
-         * @return void 
+         * Create new process pool instance.
+         *
+         * @param IoPoll|bool|null $ioPoll
+         *
+         * @return void
          */
         public function __construct($ioPoll = null)
         {
             $this->queue = createQueue();
-            $this->ioPoll = is_bool($ioPoll) ? ($ioPoll === true ? createIoPoll() : null) : $ioPoll;
+            $this->ioPoll = \is_bool($ioPoll) ? (true === $ioPoll ? createIoPoll() : null) : $ioPoll;
         }
 
         public function schedule(Process $process)
@@ -83,7 +94,7 @@ function createProcessLoop($ioPoll = null)
         public function add($subroutine, $parent = null)
         {
             $id = ++$this->lastProcId;
-            $id = null === $parent ? "$id" : sprintf("%s_%s", $parent, $id);
+            $id = null === $parent ? "$id" : sprintf('%s_%s', $parent, $id);
 
             // Schedule the process instance
             $this->schedule(process($id, $subroutine));
@@ -94,19 +105,19 @@ function createProcessLoop($ioPoll = null)
 
         public function fork($pid)
         {
-            $processId = (string)$pid;
-            // #region Get parent process id from the process id 
+            $processId = (string) $pid;
+            // #region Get parent process id from the process id
             $position = strpos(strrev($processId), '_');
             $parent = null;
             if (false !== $position) {
-                $parent = substr($processId, 0, (strlen($processId) - $position) - 1);
+                $parent = substr($processId, 0, (\strlen($processId) - $position) - 1);
             }
             // #endregion Get parent process id from the process id
             /**
              * @var Process $queuedProcess
              */
-            $queuedProcess = $this->queue->find(function ($proc) use ($pid) {
-                return (string)($proc->id()) === (string)$pid;
+            $queuedProcess = $this->queue->find(static function ($proc) use ($pid) {
+                return (string) $proc->id() === (string) $pid;
             });
             if (null === $queuedProcess) {
                 return false;
@@ -122,10 +133,10 @@ function createProcessLoop($ioPoll = null)
         public function kill($pid): bool
         {
             // Unset the task to be killed
-            $index = $this->queue->findIndex(function ($proc) use ($pid) {
+            $index = $this->queue->findIndex(static function ($proc) use ($pid) {
                 return $proc->id() === $pid;
             });
-            if ($index === -1) {
+            if (-1 === $index) {
                 return false;
             }
             $this->queue->remove($index);
@@ -138,7 +149,7 @@ function createProcessLoop($ioPoll = null)
         {
             return $this->queue->isEmpty();
         }
-    
+
         public function start(callable $processResult = null)
         {
             if ($this->ioPoll) {
@@ -157,7 +168,7 @@ function createProcessLoop($ioPoll = null)
             while (!$this->queue->isEmpty()) {
                 if ($this->paused) {
                     // We break from the scheduler without and keep the current state
-                    // of the taskQueue so that restating the queue 
+                    // of the taskQueue so that restating the queue
                     break;
                 }
                 if ($this->stopped) {
@@ -223,9 +234,9 @@ function createProcessLoop($ioPoll = null)
         }
 
         /**
-         * Stop any io event poll running
-         * 
-         * @return void 
+         * Stop any io event poll running.
+         *
+         * @return void
          */
         public function stopIO()
         {
@@ -233,12 +244,11 @@ function createProcessLoop($ioPoll = null)
                 $this->ioPoll->stop();
             }
         }
-        
+
         private function flush()
         {
             $this->queue->clear();
         }
-
     };
 }
 
@@ -246,19 +256,19 @@ function createProcessLoop($ioPoll = null)
  * Create a coroutine object that communicate with the scheduler
  * and perform a given action. Action to be performed is passed
  * as PHP callable or `Generator`.
- * 
- * @param int|string $id
+ *
+ * @param int|string          $id
  * @param callable|\Generator $subroutine
+ *
+ * @throws \Throwable
+ *
  * @return Process
- * @throws Throwable 
  */
 function process($id, $subroutine)
 {
-    return new class($id, $subroutine) implements Process
-    {
+    return new class($id, $subroutine) implements Process {
         /**
-         * 
-         * @var callable|Generator
+         * @var callable|\Generator
          */
         private $coroutine;
 
@@ -270,12 +280,12 @@ function process($id, $subroutine)
         /**
          * @var mixed
          */
-        private $value = null;
+        private $value;
 
         /**
          * @var \Throwable
          */
-        private $exception = null;
+        private $exception;
 
         /**
          * @var callable
@@ -288,16 +298,18 @@ function process($id, $subroutine)
         private $id;
 
         /**
-         * Creates a new process instance
-         * 
+         * Creates a new process instance.
+         *
          * @param int|string $id
-         * @param mixed $coroutine
-         * @return void 
-         * @throws Throwable 
+         * @param mixed      $coroutine
+         *
+         * @throws \Throwable
+         *
+         * @return void
          */
         public function __construct($id, $coroutine)
         {
-            if (is_callable($coroutine)) {
+            if (\is_callable($coroutine)) {
                 $this->factory = \Closure::fromCallable($coroutine)->bindTo(null, 'static');
             }
             $this->id = $id;
@@ -313,17 +325,20 @@ function process($id, $subroutine)
         {
             if (!$this->yielded) {
                 $this->yielded = true;
+
                 return $this->coroutine->current();
-            } else if (null !== $this->exception) {
+            } elseif (null !== $this->exception) {
                 $returnVal = $this->coroutine->throw($this->exception);
                 $this->exception = null;
+
                 return $returnVal;
-            } else {
-                return $this->coroutine->send($this->value);
             }
+
+            return $this->coroutine->send($this->value);
+
         }
 
-        public function throw(Throwable $e)
+        public function throw(\Throwable $e)
         {
             $this->exception = $e;
         }
@@ -345,26 +360,23 @@ function process($id, $subroutine)
 
         public function getCoroutine()
         {
-            if (is_callable($this->factory)) {
+            if (\is_callable($this->factory)) {
                 return \Closure::fromCallable($this->factory);
             }
-            throw new RuntimeException('Only callable or closure based processes can be cloned!');
+            throw new \RuntimeException('Only callable or closure based processes can be cloned!');
         }
     };
 }
 
-
 /**
  * This factory function create an event and (I/O) loop platform for running lightweight PHP subroutine using
  * PHP generator API.
- * 
+ *
  * `createSocket($socketId)` function uses these call to turn io `fwrite` and `fread` operation to subroutine
  * therefore when performing io operation that might run in the `scheduler`, wrap your
  * socket resources using `createSocket` for benefic performance improvement.
- * 
  */
 /**
- * 
  * @return array<\Closure,\Closure,\Closure>
  */
 function scheduler()
@@ -375,11 +387,11 @@ function scheduler()
     $processPoll = createProcessLoop(true);
 
     return [
-        function (callable $processResult = null) use ($processPoll) {
+        static function (callable $processResult = null) use ($processPoll) {
             $processPoll->start($processResult);
         },
         \Closure::fromCallable([$processPoll, 'stop'])->bindTo($processPoll),
         \Closure::fromCallable([$processPoll, 'add'])->bindTo($processPoll),
         \Closure::fromCallable([$processPoll, 'resume'])->bindTo($processPoll),
     ];
-};
+}
