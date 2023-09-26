@@ -6,8 +6,8 @@ use Drewlabs\Async\Awaitable;
 use Drewlabs\Async\PromiseInterface;
 use Exception;
 
-use function Drewlabs\Async\Scheduler\ioScheduler;
-use function Drewlabs\Async\Scheduler\spawn;
+use function Drewlabs\Async\Scheduler\createProcessLoop;
+use function Drewlabs\Async\Utility\spawn;
 
 /**
  * A promise factory function that create promise A+ specification
@@ -102,7 +102,7 @@ function promise(callable $waitFn = null, bool $shutdown = false)
             // constructor, we register a function that runs on shudown
             // the coroutine if an E_ERROR didn't occur.
             if ($shutdown) {
-                register_shutdown_function(function() {
+                register_shutdown_function(function () {
                     $this->wait();
                 });
             }
@@ -293,12 +293,12 @@ function rejected($error)
 function async($coroutine)
 {
     return promise(function ($resolve, $reject) use ($coroutine) {
-        list($runScheduler, $schedule, $stopScheduler) = ioScheduler();
+        $poll = createProcessLoop(true);
         // Schedule the current job as task
         try {
-            $job = $schedule($coroutine);
+            $job = $poll->add($coroutine);
             // Starts the scheduler
-            $runScheduler(function ($id, $result) use ($job, $stopScheduler, $resolve, $reject) {
+            $poll->start(function ($id, $result) use ($job, $poll, $resolve, $reject) {
                 if ($job !== $id) {
                     return;
                 }
@@ -307,7 +307,7 @@ function async($coroutine)
                 } else {
                     $resolve($result);
                 }
-                $stopScheduler();
+                $poll->stop();
             });
         } catch (\Throwable $e) {
             $reject($e);
@@ -333,7 +333,8 @@ function async($coroutine)
  * 
  * @return PromiseInterface<Drewlabs\Async\Future\T>&Awaitable 
  */
-function defer($waitFn) {
+function defer($waitFn)
+{
     return promise($waitFn, true);
 }
 
@@ -373,7 +374,7 @@ function defer($waitFn) {
 function join(...$coroutines)
 {
     return promise(function ($resolve, $reject) use ($coroutines) {
-        list($runScheduler, $schedule, $stopScheduler) = ioScheduler();
+        $poll = createProcessLoop(true);
         $outputs = [];
         $total = count($coroutines);
         // Schedule the current job as task
@@ -384,10 +385,10 @@ function join(...$coroutines)
                 yield;
             }
         };
-        $pProcessId = $schedule($parentTask());
+        $pProcessId = $poll->add($parentTask());
         try {
             // Starts the scheduler
-            $runScheduler(function ($id, $result) use ($pProcessId, $total, $stopScheduler, &$outputs, $reject) {
+            $poll->start(function ($id, $result) use ($pProcessId, $total, $poll, &$outputs, $reject) {
                 // We only care about current process child processes
                 if (strpos($id, sprintf("%s_", $pProcessId)) !== 0) {
                     return;
@@ -399,7 +400,7 @@ function join(...$coroutines)
                 // We stop the scheduler whenever all jobs completes
                 $hasPendingJobs = count($outputs) !== $total || (false !== array_search(null, $outputs));
                 if (false === $hasPendingJobs) {
-                    $stopScheduler();
+                    $poll->stop();
                 }
             });
             $resolve(array_values($outputs));

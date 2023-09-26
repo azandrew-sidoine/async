@@ -11,8 +11,10 @@
             "Drewlabs\\Async\\": "src/"
         },
         "files": [
-            "src/async.php",
-            "src/scheduler.php"
+            "src/utility.php",
+            "src/io.php",
+            "src/scheduler.php",
+            "src/async.php"
         ]
     },
     "authors": [

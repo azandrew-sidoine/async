@@ -1,6 +1,6 @@
 <?php
 
-namespace Drewlabs\Async;
+namespace Drewlabs\Async\IO;
 
 interface Socket
 {

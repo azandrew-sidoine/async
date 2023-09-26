@@ -12,22 +12,23 @@ interface Queue
     /**
      * Enqueue a process on the scheduler stack
      * 
-     * @param mixed $process 
+     * @param mixed $value 
      * @param mixed $taskQueue 
      * @return void 
      */
-    public function enqueue($process);
+    public function enqueue($value);
 
     /**
      * Remove a task from the top of the stack and return the removed item
-     * @param mixed $taskQueue 
+     * 
      * @return mixed 
      */
     public function dequeue();
 
     /**
      * Checks if the queue is empty
-     * @return mixed 
+     * 
+     * @return bool 
      */
     public function isEmpty();
     
