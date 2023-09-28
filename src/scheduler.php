@@ -301,19 +301,19 @@ function process($id, $subroutine)
          * Creates a new process instance.
          *
          * @param int|string $id
-         * @param mixed      $coroutine
+         * @param mixed      $subroutine
          *
          * @throws \Throwable
          *
          * @return void
          */
-        public function __construct($id, $coroutine)
+        public function __construct($id, $subroutine)
         {
-            if (\is_callable($coroutine)) {
-                $this->factory = \Closure::fromCallable($coroutine)->bindTo(null, 'static');
+            if (\is_callable($subroutine)) {
+                $this->factory = $subroutine;
             }
             $this->id = $id;
-            $this->coroutine = createCoroutine($coroutine);
+            $this->coroutine = createCoroutine($subroutine);
         }
 
         public function id()
