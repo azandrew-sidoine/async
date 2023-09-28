@@ -191,7 +191,7 @@ function promise(callable $waitFn = null, bool $shutdown = false)
 
         private function useDefaultError(): callable
         {
-            return static function (\Exception|\Error $e) {
+            return static function (\Throwable $e) {
                 throw $e;
             };
         }
@@ -213,7 +213,7 @@ function promise(callable $waitFn = null, bool $shutdown = false)
                 } else {
                     $promise->resolve($result);
                 }
-            } catch (\Exception|\Error $e) {
+            } catch (\Throwable $e) {
                 $promise->reject($e);
             }
         }
